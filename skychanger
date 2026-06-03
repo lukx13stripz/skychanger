@@ -1,0 +1,46 @@
+-- File: SkyChanger.server.lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local InsertService = game:GetService("InsertService")
+
+-- 1. Setup RemoteEvent
+local Remote = Instance.new("RemoteEvent", ReplicatedStorage)
+Remote.Name = "SkyChangerRemote"
+
+-- 2. Server Logic (Pagpapalit ng damit para makita ng lahat)
+Remote.OnServerEvent:Connect(function(player, action, assetId)
+	if action == "ON" then
+		local success, model = pcall(function() return InsertService:LoadAsset(assetId) end)
+		if success and model then
+			local clothing = model:FindFirstChildOfClass("Shirt") or model:FindFirstChildOfClass("ShirtGraphic")
+			if clothing then
+				for _, item in pairs(player.Character:GetChildren()) do if item:IsA("Clothing") then item:Destroy() end end
+				clothing.Parent = player.Character
+			end
+			model:Destroy()
+		end
+	else
+		player:LoadCharacter()
+	end
+end)
+
+-- 3. I-inject ang GUI sa bawat player pag-join
+Players.PlayerAdded:Connect(function(player)
+	local LocalScript = Instance.new("LocalScript")
+	LocalScript.Source = [[
+		local Player = game:GetService("Players").LocalPlayer
+		local Remote = game:GetService("ReplicatedStorage"):WaitForChild("SkyChangerRemote")
+		local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+		local Button = Instance.new("TextButton", ScreenGui)
+		Button.Size = UDim2.new(0, 200, 0, 50); Button.Position = UDim2.new(0.5, -100, 0.8, 0)
+		Button.Text = "Turn Sky Changer ON"
+		
+		local isOn = false
+		Button.MouseButton1Click:Connect(function()
+			isOn = not isOn
+			Button.Text = isOn and "Turn Sky Changer OFF" or "Turn Sky Changer ON"
+			Remote:FireServer(isOn and "ON" or "OFF", 96307000650326)
+		end)
+	]]
+	LocalScript.Parent = player:WaitForChild("PlayerGui")
+end)
